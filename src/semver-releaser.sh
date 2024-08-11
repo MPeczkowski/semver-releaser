@@ -4,7 +4,7 @@ set -o nounset
 set -o pipefail
 
 minor_keywords=("feat" "feature")
-patch_keywords=("patch" "fix")
+patch_keywords=("patch" "fix" "refactor")
 
 ###################################################################
 # Don't modify this part of variables - it might break the script #
@@ -16,6 +16,9 @@ suggested_version_minor=0
 suggested_version_patch=1
 
 debug_mode='false'
+single_release_bump='false'
+
+biggest_semver_type='nothing'
 
 # Static variables
 readonly REQUIRED_PACKAGES=(git tail getopt)
@@ -134,13 +137,61 @@ function get_commit_type() {
     debug_msg "In commit ${1} (parsed to ${commit}) - found type - ${type}"
 }
 
+function bump_suggested_version() {
+  # GLOBAL VALUES IN USE
+  # Update suggested_version by the given commit type
+  #   $1 - commit-type
+
+  local commit_type
+  commit_type="${1}"
+  case ${commit_type} in
+    major)
+      suggested_version_major=$((suggested_version_major + 1))
+      suggested_version_minor=0
+      suggested_version_patch=0
+    ;;
+    minor)
+      suggested_version_minor=$((suggested_version_minor + 1))
+      suggested_version_patch=0
+    ;;
+    patch)
+      suggested_version_patch=$((suggested_version_patch + 1))
+    ;;
+  esac
+}
+
+function upgrade_biggest_semver_type() {
+  # GLOBAL VALUES IN USE
+  # Update the biggest_semver_type value to the biggest one value by the given commit type
+  #   $1 - commit-type
+
+  local commit_type
+  commit_type="${1}"
+
+  if [[ "${biggest_semver_type}" == "major" ]]; then
+    return
+  fi
+
+  if [[ "${biggest_semver_type}" == "minor" && "${commit_type}" == "minor" ]]; then
+    return
+  fi
+
+  if [[ "${biggest_semver_type}" == "nothing" && "${commit_type}" == "patch" ]]; then
+    return
+  fi
+
+  debug_msg "Change biggest semver type from ${biggest_semver_type} -> ${commit_type}"
+  biggest_semver_type="${commit_type}"
+}
+
+
 function usage_message() {
 cat << EOF
 Usage ${0}:
-  -d|--debug-mode - Print debug message (usefully to determinate why script suggest given version)
-  -b|--base-release [string] - Select base version for the release (usefully when it's first release) (expected format [major].[minor].[patch], example: 1.0.0)
+  -d|--debug-mode - Print debug message (usefully to determine why script suggests given version)
+  -s|--single-release - Raise only by the single largest version, even if there were many commits along the way that should raise the version
+  -b|--base-release [string] - Select the base version for the release (usefully when it's first release) (expected format [major].[minor].[patch], example: 1.0.0)
   -h|--help - Display this message
-
 EOF
 }
 
@@ -152,7 +203,7 @@ EOF
 verify_required_programs
 
 set +o errexit
-OPTS=$(getopt --name 'semver-releaser' --alternative --options 'dhb:' --long 'debug-mode,help,base-release:' -- "$@")
+OPTS=$(getopt --name 'semver-releaser' --alternative --options 'dshb:' --long 'single-release,debug-mode,help,base-release:' -- "$@")
 if [ $? -ne 0 ]; then
 	usage_message
 	exit 1
@@ -166,6 +217,10 @@ do
     case "$1" in
         -d|--debug-mode)
             debug_mode='true'
+            shift
+            ;;
+        -s|--single-release)
+            single_release_bump=true
             shift
             ;;
         -h|--help)
@@ -207,24 +262,22 @@ debug_msg "Regex to search the commit messages - ${match_regex}"
 
 while read -r line; do
   if [[ ${line} =~ ${match_regex} ]]; then
+
     debug_msg "Found line to verify ${line}"
     commit_type=$(get_commit_type "${line[@]}")
     debug_msg "Received commit-type - ${commit_type}"
-    case ${commit_type} in
-      major)
-        suggested_version_major=$((suggested_version_major + 1))
-        suggested_version_minor=0
-        suggested_version_patch=0
-      ;;
-      minor)
-        suggested_version_minor=$((suggested_version_minor + 1))
-        suggested_version_patch=0
-      ;;
-      patch)
-        suggested_version_patch=$((suggested_version_patch + 1))
-      ;;
-    esac
+    upgrade_biggest_semver_type "${commit_type}"
+    bump_suggested_version "${commit_type}"
+    debug_msg "Current biggest_semver_type = ${biggest_semver_type}"
+    debug_msg "Current current suggested tag = $(return_tag)"
+
   fi
 done <<< "$(git --no-pager log --pretty=format:%s%n --reverse "${search_history_between}")"
+
+if [[ "${single_release_bump}" == 'true' ]]; then
+  debug_msg "Overwriting the suggested tag to the latest semver tag, due to the single release switch"
+  set_base_release_tag "${latest_semver_tag}"
+  bump_suggested_version "${biggest_semver_type}"
+fi
 
 return_tag
