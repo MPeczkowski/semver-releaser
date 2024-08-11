@@ -17,7 +17,9 @@ suggested_version_patch=1
 
 debug_mode='false'
 single_release_bump='false'
+create_git_tag='false'
 
+create_git_tag_additional_comment=''
 biggest_semver_type='nothing'
 
 # Static variables
@@ -26,7 +28,7 @@ readonly REQUIRED_PACKAGES=(git tail getopt)
 #                   Functions part                                 #
 ####################################################################
 
-function return_tag() {
+function build_tag() {
   printf "%d.%d.%d" "${suggested_version_major}" "${suggested_version_minor}" "${suggested_version_patch}"
 }
 
@@ -34,6 +36,11 @@ function err_msg() {
   printf "\033[0;31mError\033[0m: %s \n" "${@}" >&2
   exit 2
 }
+
+function info_msg() {
+  printf "\033[0;32mInfo\033[0m: %s \n" "${@}" >&2
+}
+
 
 function debug_msg() {
   if [[ ${debug_mode} == "true" ]]; then
@@ -102,6 +109,17 @@ function verify_required_programs() {
 
 function get_latest_semver_tag() {
   git tag --sort=committerdate | grep --extended-regexp '([0-9]+\.?){3}' --only-matching | tail --lines 1 || echo ""
+}
+
+function add_git_tag() {
+
+  if [[ "${create_git_tag_additional_comment}" != '' ]]; then
+      info_msg "Create annotated tag ($(build_tag)) with comment = ${create_git_tag_additional_comment}"
+      git tag "$(build_tag)" --annotate --message "\"$(build_tag) - ${create_git_tag_additional_comment}\""
+  else
+      info_msg "Create unannotated tag ($(build_tag))"
+      git tag "$(build_tag)"
+  fi
 }
 
 function build_match_regex() {
@@ -190,7 +208,9 @@ cat << EOF
 Usage ${0}:
   -d|--debug-mode - Print debug message (usefully to determine why script suggests given version)
   -s|--single-release - Raise only by the single largest version, even if there were many commits along the way that should raise the version
-  -b|--base-release [string] - Select the base version for the release (usefully when it's first release) (expected format [major].[minor].[patch], example: 1.0.0)
+  -b|--base-release [major:int].[minor:int].[patch:int] - Select the base version for the release (usefully when it's first release) (expected format [major].[minor].[patch], example: 1.0.0)
+  -a|--add-git-tag - Instead of printing the release version tag - add the tag in the current git repository
+  -c|-comment-git-tag [comment:string] - Add an annotated git tag with the given comment
   -h|--help - Display this message
 EOF
 }
@@ -203,7 +223,14 @@ EOF
 verify_required_programs
 
 set +o errexit
-OPTS=$(getopt --name 'semver-releaser' --alternative --options 'dshb:' --long 'single-release,debug-mode,help,base-release:' -- "$@")
+OPTS="$(
+  getopt --name 'semver-releaser' \
+  --alternative \
+  --options 'ac:dshb:' \
+  --long 'add-git-tag,single-release,debug-mode,help,comment-git-tag:,base-release:' \
+  -- "$@"
+)"
+
 if [ $? -ne 0 ]; then
 	usage_message
 	exit 1
@@ -215,6 +242,16 @@ eval set -- "${OPTS}"
 while :
 do
     case "$1" in
+        -a|--add-git-tag)
+            create_git_tag='true'
+            shift
+            ;;
+        -c|--comment-git-tag)
+            echo "${1} - ${2}"
+            create_git_tag='true'
+            create_git_tag_additional_comment="${2}"
+            shift 2
+            ;;
         -d|--debug-mode)
             debug_mode='true'
             shift
@@ -247,9 +284,13 @@ done
 latest_semver_tag=$(get_latest_semver_tag)
 if [[ -z "${latest_semver_tag}" ]]; then
   debug_msg "Not found any semantic version tag"
-  return_tag
+  if [[ "${create_git_tag}" == "true" ]]; then
+    add_git_tag
+  else
+    build_tag
+  fi
   exit 0
-else
+elif [[ "${latest_semver_tag}" != "$(build_tag)" ]]; then
   set_base_release_tag "${latest_semver_tag}"
 fi
 
@@ -268,9 +309,8 @@ while read -r line; do
     debug_msg "Received commit-type - ${commit_type}"
     upgrade_biggest_semver_type "${commit_type}"
     bump_suggested_version "${commit_type}"
-    debug_msg "Current biggest_semver_type = ${biggest_semver_type}"
-    debug_msg "Current current suggested tag = $(return_tag)"
-
+    debug_msg "Current biggest_semver_type = ${biggdest_semver_type}"
+    debug_msg "Current current suggested tag = $(build_tag)"
   fi
 done <<< "$(git --no-pager log --pretty=format:%s%n --reverse "${search_history_between}")"
 
@@ -280,4 +320,9 @@ if [[ "${single_release_bump}" == 'true' ]]; then
   bump_suggested_version "${biggest_semver_type}"
 fi
 
-return_tag
+
+if [[ "${create_git_tag}" == "true" ]]; then
+  add_git_tag
+else
+  build_tag
+fi
