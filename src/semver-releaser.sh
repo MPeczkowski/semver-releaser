@@ -309,7 +309,7 @@ while read -r line; do
     debug_msg "Received commit-type - ${commit_type}"
     upgrade_biggest_semver_type "${commit_type}"
     bump_suggested_version "${commit_type}"
-    debug_msg "Current biggest_semver_type = ${biggdest_semver_type}"
+    debug_msg "Current biggest_semver_type = ${biggest_semver_type}"
     debug_msg "Current current suggested tag = $(build_tag)"
   fi
 done <<< "$(git --no-pager log --pretty=format:%s%n --reverse "${search_history_between}")"
