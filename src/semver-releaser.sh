@@ -190,11 +190,7 @@ function upgrade_biggest_semver_type() {
     return
   fi
 
-  if [[ "${biggest_semver_type}" == "minor" && "${commit_type}" == "minor" ]]; then
-    return
-  fi
-
-  if [[ "${biggest_semver_type}" == "nothing" && "${commit_type}" == "patch" ]]; then
+  if [[ "${biggest_semver_type}" == "minor" && "${commit_type}" == "patch" ]]; then
     return
   fi
 
