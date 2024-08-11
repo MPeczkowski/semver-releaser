@@ -1,0 +1,16 @@
+version: 3
+
+tasks:
+  release:
+    desc: "Release a new version of semver-releaser"
+    cmds:
+      - bash ./src/semver-releaser.sh --single-release --add-git-tag
+
+  install:
+    vars:
+      DESTINATION_PATH: "${HOME}/.local/bin"
+    desc: "Install the semver-releaser inside {{.DESTINATION_PATH}}"
+    cmds:
+      - mkdir --parent "{{.DESTINATION_PATH}}"
+      - cp src/semver-releaser.sh "{{.DESTINATION_PATH}}/semver-releaser"
+      - chmod +x "{{.DESTINATION_PATH}}/semver-releaser"
