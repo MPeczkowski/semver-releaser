@@ -204,7 +204,7 @@ cat << EOF
 Usage ${0}:
   -d|--debug-mode - Print debug message (usefully to determine why script suggests given version)
   -s|--single-release - Raise only by the single largest version, even if there were many commits along the way that should raise the version
-  -b|--base-release [major:int].[minor:int].[patch:int] - Select the base version for the release (usefully when it's first release) (expected format [major].[minor].[patch], example: 1.0.0)
+  -b|--base-release [major:int].[minor:int].[patch:int] - Select the base version for the release (valid only when first release) (expected format [major].[minor].[patch], example: 1.0.0)
   -a|--add-git-tag - Instead of printing the release version tag - add the tag in the current git repository
   -c|-comment-git-tag [comment:string] - Add an annotated git tag with the given comment
   -h|--help - Display this message
@@ -277,7 +277,7 @@ do
 done
 
 
-latest_semver_tag=$(get_latest_semver_tag)
+latest_semver_tag="$(get_latest_semver_tag)"
 if [[ -z "${latest_semver_tag}" ]]; then
   debug_msg "Not found any semantic version tag"
   if [[ "${create_git_tag}" == "true" ]]; then
@@ -286,10 +286,9 @@ if [[ -z "${latest_semver_tag}" ]]; then
     build_tag
   fi
   exit 0
-elif [[ "${latest_semver_tag}" != "$(build_tag)" ]]; then
-  set_base_release_tag "${latest_semver_tag}"
 fi
 
+set_base_release_tag "${latest_semver_tag}"
 search_history_between="${latest_semver_tag}..$(git branch --show-current)"
 
 debug_msg "Search history range - ${search_history_between}"
