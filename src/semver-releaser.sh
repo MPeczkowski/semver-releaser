@@ -126,8 +126,7 @@ function build_match_regex() {
   # GLOBAL VALUES IN USE
   # Take keywords and combine all to a regex form
   # Returns: Regex form
-  keywords=$(IFS='|' ; echo "${minor_keywords[*]}|${patch_keywords[*]}) ?(\(.*\))?!?")
-  echo "^(${keywords}"
+  echo "$(IFS='|' ; echo "^(${minor_keywords[*]}|${patch_keywords[*]}) ?(\(.*\))?!?")"
 }
 
 function get_commit_type() {
