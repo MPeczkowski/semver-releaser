@@ -199,8 +199,18 @@ function upgrade_biggest_semver_type() {
 
 
 function usage_message() {
+  local format
+  format="$(IFS='|' ; echo "(${minor_keywords[*]}|${patch_keywords[*]}) [(scope)][!]")"
+
+
 cat << EOF
 Usage ${0}:
+
+   Format: ${format}: [message]
+
+   (scope is optional)
+   (! - mark is used if you want to increment major number)
+
   -d|--debug-mode - Print debug message (usefully to determine why script suggests given version)
   -s|--single-release - Raise only by the single largest version, even if there were many commits along the way that should raise the version
   -b|--base-release [major:int].[minor:int].[patch:int] - Select the base version for the release (valid only when first release) (expected format [major].[minor].[patch], example: 1.0.0)
