@@ -206,7 +206,7 @@ Usage ${0}:
   -s|--single-release - Raise only by the single largest version, even if there were many commits along the way that should raise the version
   -b|--base-release [major:int].[minor:int].[patch:int] - Select the base version for the release (valid only when first release) (expected format [major].[minor].[patch], example: 1.0.0)
   -a|--add-git-tag - Instead of printing the release version tag - add the tag in the current git repository
-  -c|-comment-git-tag [comment:string] - Add an annotated git tag with the given comment
+  -c|--comment-git-tag [comment:string] - Add an annotated git tag with the given comment
   -h|--help - Display this message
 EOF
 }
